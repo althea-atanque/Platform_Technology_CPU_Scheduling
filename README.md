@@ -281,7 +281,76 @@ int main() {
 
 // FCFS
 
+#include <iostream>
+#include <iomanip>
+using namespace std;
 
+int main() {
+    int n;
+
+    cout << "FCFS CPU SCHEDULING (NON-PREEMPTIVE)" << endl;
+    cout << "Enter number of processes: ";
+    cin >> n;
+
+    int at[20], bt[20], ct[20];
+    int tat[20], wt[20];
+
+    // Input arrival time and burst time
+    for (int i = 0; i < n; i++) {
+        cout << "\nProcess P" << i + 1 << endl;
+        cout << "Arrival Time: ";
+        cin >> at[i];
+
+        cout << "Burst Time: ";
+        cin >> bt[i];
+    }
+
+    int currentTime = 0;
+    float totalWT = 0, totalTAT = 0;
+
+    // FCFS Scheduling
+    for (int i = 0; i < n; i++) {
+
+        if (currentTime < at[i]) {
+            currentTime = at[i];
+        }
+
+        currentTime += bt[i];
+        ct[i] = currentTime;
+
+        tat[i] = ct[i] - at[i];
+        wt[i] = tat[i] - bt[i];
+
+        totalWT += wt[i];
+        totalTAT += tat[i];
+    }
+
+    // Display results
+    cout << "\n\nFCFS SCHEDULING TABLE\n";
+    cout << "------------------------------------------------\n";
+    cout << "Process\tAT\tBT\tCT\tTAT\tWT\n";
+    cout << "------------------------------------------------\n";
+
+    for (int i = 0; i < n; i++) {
+        cout << "P" << i + 1 << "\t"
+             << at[i] << "\t"
+             << bt[i] << "\t"
+             << ct[i] << "\t"
+             << tat[i] << "\t"
+             << wt[i] << endl;
+    }
+
+    cout << "------------------------------------------------\n";
+
+    cout << fixed << setprecision(2);
+    cout << "Average Turnaround Time: "
+         << totalTAT / n << endl;
+
+    cout << "Average Waiting Time: "
+         << totalWT / n << endl;
+
+    return 0;
+}
 
 
 
