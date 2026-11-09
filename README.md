@@ -359,6 +359,175 @@ int main() {
 
 // SJF
 
+#include <iostream>
+#include <iomanip>
+#include <string>
+using namespace std;
+
+struct Process {
+    string id;
+    int arrival;
+    int burst;
+    int completion;
+    int turnaround;
+    int waiting;
+    int response;
+    int start;
+    bool done;
+};
+
+int main() {
+    int n;
+    Process p[20];
+
+    cout << "===== SJF CPU SCHEDULING =====" << endl;
+
+    cout << "Enter number of processes: ";
+    cin >> n;
+
+    if (n < 1 || n > 20) {
+        cout << "Please enter 1 to 20 processes.";
+        return 0;
+    }
+
+    for (int i = 0; i < n; i++) {
+        cout << "\nProcess P" << i + 1 << endl;
+
+
+        p[i].id = "P";
+        p[i].id += (i + 1) + '0';  
+     
+     
+        cout << "Arrival Time: ";
+        cin >> p[i].arrival;
+
+        cout << "Burst Time: ";
+        cin >> p[i].burst;
+
+        p[i].done = false;
+    }
+
+    int currentTime = 0;
+    int completed = 0;
+
+    int ganttStart[20];
+    int ganttEnd[20];
+    string ganttProcess[20];
+    int count = 0;
+
+    while (completed < n) {
+
+        int shortest = -1;
+
+        for (int i = 0; i < n; i++) {
+
+            if (!p[i].done && p[i].arrival <= currentTime) {
+
+                if (shortest == -1 ||
+                    p[i].burst < p[shortest].burst) {
+
+                    shortest = i;
+                }
+            }
+        }
+
+        if (shortest == -1) {
+
+            int nextArrival = 999999;
+
+            for (int i = 0; i < n; i++) {
+                if (!p[i].done &&
+                    p[i].arrival < nextArrival) {
+
+                    nextArrival = p[i].arrival;
+                }
+            }
+
+            currentTime = nextArrival;
+            continue;
+        }
+
+        p[shortest].start = currentTime;
+
+        ganttStart[count] = currentTime;
+
+        currentTime += p[shortest].burst;
+
+        ganttEnd[count] = currentTime;
+        ganttProcess[count] = p[shortest].id;
+        count++;
+
+        p[shortest].completion = currentTime;
+
+        p[shortest].turnaround =
+            p[shortest].completion - p[shortest].arrival;
+
+        p[shortest].waiting =
+            p[shortest].turnaround - p[shortest].burst;
+
+        p[shortest].response =
+            p[shortest].start - p[shortest].arrival;
+
+        p[shortest].done = true;
+        completed++;
+    }
+
+    cout << "\n\n===== GANTT CHART =====\n";
+
+    for (int i = 0; i < count; i++) {
+        cout << "| " << ganttProcess[i] << " ";
+    }
+    cout << "|\n";
+
+    cout << ganttStart[0];
+
+    for (int i = 0; i < count; i++) {
+        cout << "    " << ganttEnd[i];
+    }
+
+    double totalWT = 0;
+    double totalTAT = 0;
+
+    cout << "\n\n===== SCHEDULING RESULTS =====\n";
+
+    cout << left
+         << setw(10) << "Process"
+         << setw(10) << "AT"
+         << setw(10) << "BT"
+         << setw(10) << "CT"
+         << setw(10) << "TAT"
+         << setw(10) << "WT"
+         << setw(10) << "RT" << endl;
+
+    for (int i = 0; i < n; i++) {
+
+        cout << left
+             << setw(10) << p[i].id
+             << setw(10) << p[i].arrival
+             << setw(10) << p[i].burst
+             << setw(10) << p[i].completion
+             << setw(10) << p[i].turnaround
+             << setw(10) << p[i].waiting
+             << setw(10) << p[i].response
+             << endl;
+
+        totalWT += p[i].waiting;
+        totalTAT += p[i].turnaround;
+    }
+
+    cout << fixed << setprecision(2);
+
+    cout << "\nAverage Waiting Time: "
+         << totalWT / n;
+
+    cout << "\nAverage Turnaround Time: "
+         << totalTAT / n;
+
+    cout << "\n\nSimulation Complete!\n";
+
+    return 0;
+}
+
 
 
 //SRTF
