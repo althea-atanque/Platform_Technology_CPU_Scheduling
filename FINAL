@@ -1,0 +1,1184 @@
+import javax.swing.*;
+import javax.swing.border.*;
+import java.awt.*;
+import java.util.*;
+import java.util.List;
+
+// ==================================================
+// PROCESS CLASS
+// ==================================================
+class Process {
+    int pid;
+    int arrivalTime;
+    int burstTime;
+    int queueLevel;
+
+    Process(int pid, int at, int bt, int queue) {
+        this.pid = pid;
+        this.arrivalTime = at;
+        this.burstTime = bt;
+        this.queueLevel = queue;
+    }
+}
+
+// ==================================================
+// GANTT SEGMENT
+// ==================================================
+class Segment {
+    int pid;
+    int start;
+    int end;
+
+    Segment(int pid, int start, int end) {
+        this.pid = pid;
+        this.start = start;
+        this.end = end;
+    }
+}
+
+// ==================================================
+// PROCESS STATISTICS
+// ==================================================
+class Stats {
+    int firstStart = -1;
+    int completion = 0;
+}
+
+class ScheduleResult {
+    ArrayList<Segment> gantt = new ArrayList<>();
+    LinkedHashMap<Integer, Stats> stats = new LinkedHashMap<>();
+    int finishTime;
+}
+
+// ==================================================
+// GRAPHICAL GANTT CHART
+// ==================================================
+class GanttChart extends JPanel {
+
+    private ArrayList<Segment> segments = new ArrayList<>();
+
+    private final int scale = 55;
+    private final int left = 55;
+
+    GanttChart() {
+        setBackground(Color.WHITE);
+        setBorder(new EmptyBorder(10, 10, 10, 10));
+        setPreferredSize(new Dimension(700, 145));
+    }
+
+    public void setSegments(List<Segment> data) {
+
+        segments = new ArrayList<>(data);
+
+        int finish = 0;
+
+        for (Segment s : segments) {
+            finish = Math.max(finish, s.end);
+        }
+
+        int width = left + finish * scale + 80;
+
+        setPreferredSize(
+            new Dimension(Math.max(width, 700), 145)
+        );
+
+        revalidate();
+        repaint();
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+
+        super.paintComponent(g);
+
+        Graphics2D g2 = (Graphics2D) g.create();
+
+        g2.setRenderingHint(
+            RenderingHints.KEY_ANTIALIASING,
+            RenderingHints.VALUE_ANTIALIAS_ON
+        );
+
+        g2.setFont(new Font("Arial", Font.BOLD, 13));
+
+        if (segments.isEmpty()) {
+
+            g2.setColor(Color.GRAY);
+
+            g2.drawString(
+                "Run an algorithm to display the Gantt Chart.",
+                30, 60
+            );
+
+            g2.dispose();
+            return;
+        }
+
+        g2.setColor(Color.BLACK);
+
+        g2.drawString(
+            "CPU EXECUTION TIMELINE",
+            left, 20
+        );
+
+        int y = 35;
+        int barHeight = 48;
+
+        for (Segment s : segments) {
+
+            int x = left + s.start * scale;
+
+            int width = Math.max(
+                1, (s.end - s.start) * scale
+            );
+
+            Color processColor;
+
+            if (s.pid == -1) {
+
+                processColor = new Color(190, 190, 190);
+
+            } else {
+
+                processColor = Color.getHSBColor(
+                    (s.pid * 0.137f) % 1.0f,
+                    0.65f,
+                    0.85f
+                );
+            }
+
+            g2.setColor(processColor);
+
+            g2.fillRoundRect(
+                x, y, width, barHeight, 9, 9
+            );
+
+            g2.setColor(Color.BLACK);
+
+            g2.drawRoundRect(
+                x, y, width, barHeight, 9, 9
+            );
+
+            String label = s.pid == -1
+                ? "IDLE"
+                : "P" + s.pid;
+
+            FontMetrics fm = g2.getFontMetrics();
+
+            if (width > fm.stringWidth(label) + 8) {
+
+                int textX = x +
+                    (width - fm.stringWidth(label)) / 2;
+
+                int textY = y +
+                    (barHeight + fm.getAscent()) / 2 - 3;
+
+                g2.drawString(label, textX, textY);
+            }
+
+            // Starting time
+            g2.drawString(
+                String.valueOf(s.start),
+                x - 4,
+                y + barHeight + 20
+            );
+        }
+
+        // Final ending time
+        int finalTime = segments.get(
+            segments.size() - 1
+        ).end;
+
+        int finalX = left + finalTime * scale;
+
+        g2.drawString(
+            String.valueOf(finalTime),
+            finalX - 4,
+            y + barHeight + 20
+        );
+
+        g2.dispose();
+    }
+}
+
+// ==================================================
+// MAIN APPLICATION
+// ==================================================
+public class Main extends JFrame {
+
+    JTextField pidField;
+    JTextField atField;
+    JTextField btField;
+    JTextField queueField;
+    JTextField quantumField;
+
+    JComboBox<String> algorithmBox;
+
+    JButton addButton;
+    JButton runButton;
+    JButton clearButton;
+
+    JTextArea outputArea;
+
+    GanttChart ganttChart;
+
+    ArrayList<Process> processes = new ArrayList<>();
+
+    // ==================================================
+    // CONSTRUCTOR / GUI
+    // ==================================================
+    public Main() {
+
+        setTitle("CPU Scheduling Algorithm Simulator");
+        setSize(1100, 800);
+        setMinimumSize(new Dimension(950, 700));
+
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        setLayout(new BorderLayout(8, 8));
+
+        // TITLE
+        JLabel title = new JLabel(
+            "CPU SCHEDULING ALGORITHM SIMULATOR",
+            SwingConstants.CENTER
+        );
+
+        title.setFont(
+            new Font("Arial", Font.BOLD, 22)
+        );
+
+        title.setBorder(
+            new EmptyBorder(10, 5, 10, 5)
+        );
+
+        // PROCESS INFORMATION PANEL
+        JPanel inputPanel = new JPanel(
+            new GridLayout(7, 2, 8, 5)
+        );
+
+        inputPanel.setBorder(
+            new TitledBorder("PROCESS INFORMATION")
+        );
+
+        pidField = new JTextField();
+        atField = new JTextField();
+        btField = new JTextField();
+        queueField = new JTextField("1");
+        quantumField = new JTextField("2");
+
+        algorithmBox = new JComboBox<>(
+            new String[]{
+                "FCFS",
+                "SJF",
+                "SRTF",
+                "RR",
+                "MLQ"
+            }
+        );
+
+        addField(inputPanel, "Process ID (PID):", pidField);
+        addField(inputPanel, "Arrival Time:", atField);
+        addField(inputPanel, "Burst Time:", btField);
+        addField(inputPanel, "Queue Level (1-4):", queueField);
+        addField(inputPanel, "Time Quantum:", quantumField);
+        addField(inputPanel, "Algorithm:", algorithmBox);
+
+        // BUTTONS
+        addButton = new JButton("Add Process");
+        runButton = new JButton("Run Simulation");
+        clearButton = new JButton("Clear All");
+
+        JPanel buttonPanel = new JPanel(
+            new GridLayout(1, 3, 8, 5)
+        );
+
+        buttonPanel.add(addButton);
+        buttonPanel.add(runButton);
+        buttonPanel.add(clearButton);
+
+        // TOP CONTAINER
+        JPanel topContainer = new JPanel(
+            new BorderLayout(5, 5)
+        );
+
+        topContainer.add(title, BorderLayout.NORTH);
+        topContainer.add(inputPanel, BorderLayout.CENTER);
+        topContainer.add(buttonPanel, BorderLayout.SOUTH);
+
+        // GANTT CHART
+        ganttChart = new GanttChart();
+
+        JScrollPane chartScroll = new JScrollPane(
+            ganttChart,
+            JScrollPane.VERTICAL_SCROLLBAR_NEVER,
+            JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED
+        );
+
+        chartScroll.setBorder(
+            new TitledBorder("GRAPHICAL GANTT CHART")
+        );
+
+        chartScroll.setPreferredSize(
+            new Dimension(1000, 160)
+        );
+
+        // RESULTS AREA
+        outputArea = new JTextArea();
+
+        outputArea.setFont(
+            new Font("Monospaced", Font.PLAIN, 12)
+        );
+
+        outputArea.setEditable(false);
+
+        JScrollPane outputScroll = new JScrollPane(
+            outputArea
+        );
+
+        outputScroll.setBorder(
+            new TitledBorder("SCHEDULING RESULTS")
+        );
+
+        // CENTER CONTAINER
+        JPanel centerPanel = new JPanel(
+            new BorderLayout(5, 5)
+        );
+
+        centerPanel.add(
+            chartScroll,
+            BorderLayout.NORTH
+        );
+
+        centerPanel.add(
+            outputScroll,
+            BorderLayout.CENTER
+        );
+
+        // MAIN LAYOUT
+        JPanel mainPanel = new JPanel(
+            new BorderLayout(8, 8)
+        );
+
+        mainPanel.setBorder(
+            new EmptyBorder(8, 10, 8, 10)
+        );
+
+        mainPanel.add(
+            topContainer,
+            BorderLayout.NORTH
+        );
+
+        mainPanel.add(
+            centerPanel,
+            BorderLayout.CENTER
+        );
+
+        add(mainPanel, BorderLayout.CENTER);
+
+        // BUTTON ACTIONS
+        addButton.addActionListener(
+            e -> addProcess()
+        );
+
+        runButton.addActionListener(
+            e -> runSimulation()
+        );
+
+        clearButton.addActionListener(
+            e -> clearAll()
+        );
+
+        setVisible(true);
+    }
+
+    private void addField(
+        JPanel panel,
+        String label,
+        JComponent field
+    ) {
+
+        panel.add(new JLabel(label));
+        panel.add(field);
+    }
+
+    // ==================================================
+    // ADD PROCESS
+    // ==================================================
+    private void addProcess() {
+
+        try {
+
+            int pid = Integer.parseInt(
+                pidField.getText().trim()
+            );
+
+            int at = Integer.parseInt(
+                atField.getText().trim()
+            );
+
+            int bt = Integer.parseInt(
+                btField.getText().trim()
+            );
+
+            int queue = Integer.parseInt(
+                queueField.getText().trim()
+            );
+
+            if (pid < 0 || at < 0 ||
+             bt <= 0) {
+
+                throw new IllegalArgumentException(
+                    "PID and arrival time must be nonnegative. Burst time must be positive."
+                );
+            }
+
+            if (queue < 1 || queue > 4) {
+
+                throw new IllegalArgumentException(
+                    "Queue level must be between 1 and 4."
+                );
+            }
+
+            for (Process p : processes) {
+
+                if (p.pid == pid) {
+
+                    throw new IllegalArgumentException(
+                        "Process ID already exists!"
+                    );
+                }
+            }
+
+            processes.add(
+                new Process(pid, at, bt, queue)
+            );
+
+            outputArea.append(
+                "P" + pid + " Added Successfully!\n"
+            );
+
+            pidField.setText("");
+            atField.setText("");
+            btField.setText("");
+
+            pidField.requestFocus();
+
+        } catch (NumberFormatException ex) {
+
+            JOptionPane.showMessageDialog(
+                this,
+                "Please enter valid whole numbers in all process fields.",
+                "Invalid Input",
+                JOptionPane.ERROR_MESSAGE
+            );
+
+        } catch (IllegalArgumentException ex) {
+
+            JOptionPane.showMessageDialog(
+                this,
+                ex.getMessage(),
+                "Input Error",
+                JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
+    // ==================================================
+    // RUN SIMULATION
+    // ==================================================
+    private void runSimulation() {
+
+        if (processes.isEmpty()) {
+
+            JOptionPane.showMessageDialog(
+                this,
+                "Please add at least one process."
+            );
+
+            return;
+        }
+
+        String algorithm =
+            algorithmBox.getSelectedItem().toString();
+
+        int quantum = 1;
+
+        if (algorithm.equals("RR") ||
+            algorithm.equals("MLQ")) {
+
+            try {
+
+                quantum = Integer.parseInt(
+                    quantumField.getText().trim()
+                );
+
+                if (quantum <= 0) {
+                    throw new NumberFormatException();
+                }
+
+            } catch (NumberFormatException ex) {
+
+                JOptionPane.showMessageDialog(
+                    this,
+                    "Time Quantum must be a positive whole number."
+                );
+
+                return;
+            }
+        }
+
+        outputArea.setText("");
+
+        ScheduleResult result;
+
+        switch (algorithm) {
+
+            case "FCFS":
+                result = runFCFS(processes, 0);
+                break;
+
+            case "SJF":
+                result = runSJF(processes, 0);
+                break;
+
+            case "SRTF":
+                result = runSRTF(processes, 0);
+                break;
+
+            case "RR":
+                result = runRR(processes, quantum, 0);
+                break;
+
+            case "MLQ":
+                result = runMLQ(processes, quantum);
+                break;
+
+            default:
+                return;
+        }
+
+        ganttChart.setSegments(result.gantt);
+
+        displayResults(result, algorithm);
+    }
+
+    // ==================================================
+    // FCFS - NON PREEMPTIVE
+    // ==================================================
+    private ScheduleResult runFCFS(
+        List<Process> list,
+        int initialTime
+    ) {
+
+        ScheduleResult result = new ScheduleResult();
+
+        ArrayList<Process> sorted =
+            new ArrayList<>(list);
+
+        sorted.sort(
+            Comparator.comparingInt(
+                p -> p.arrivalTime
+            )
+        );
+
+        int time = initialTime;
+
+        for (Process p : sorted) {
+
+            if (time < p.arrivalTime) {
+
+                addSegment(
+                    result, -1, time, p.arrivalTime
+                );
+
+                time = p.arrivalTime;
+            }
+
+            int start = time;
+
+            time += p.burstTime;
+
+            addSegment(
+                result, p.pid, start, time
+            );
+
+            Stats s = new Stats();
+
+            s.firstStart = start;
+            s.completion = time;
+
+            result.stats.put(p.pid, s);
+        }
+
+        result.finishTime = time;
+
+        return result;
+    }
+
+    // ==================================================
+    // SJF - NON PREEMPTIVE
+    // ==================================================
+    private ScheduleResult runSJF(
+        List<Process> list,
+        int initialTime
+    ) {
+
+        ScheduleResult result = new ScheduleResult();
+
+        ArrayList<Process> remaining =
+            new ArrayList<>(list);
+
+        int time = initialTime;
+
+        while (!remaining.isEmpty()) {
+
+            Process selected = null;
+
+            for (Process p : remaining) {
+
+                if (p.arrivalTime <= time) {
+
+                    if (selected == null ||
+                        p.burstTime < selected.burstTime ||
+                        (p.burstTime == selected.burstTime &&
+                         p.arrivalTime < selected.arrivalTime)) {
+
+                        selected = p;
+                    }
+                }
+            }
+
+            if (selected == null) {
+
+                int nextArrival = Integer.MAX_VALUE;
+
+                for (Process p : remaining) {
+
+                    nextArrival = Math.min(
+                        nextArrival,
+                        p.arrivalTime
+                    );
+                }
+
+                addSegment(
+                    result, -1, time, nextArrival
+                );
+
+                time = nextArrival;
+
+                continue;
+            }
+
+            int start = time;
+
+            time += selected.burstTime;
+
+            addSegment(
+                result, selected.pid, start, time
+            );
+
+            Stats s = new Stats();
+
+            s.firstStart = start;
+            s.completion = time;
+
+            result.stats.put(selected.pid, s);
+
+            remaining.remove(selected);
+        }
+
+        result.finishTime = time;
+
+        return result;
+    }
+
+    // ==================================================
+    // SRTF - PREEMPTIVE
+    // ==================================================
+    private ScheduleResult runSRTF(
+        List<Process> list,
+        int initialTime
+    ) {
+
+        ScheduleResult result = new ScheduleResult();
+
+        HashMap<Integer, Integer> remaining =
+            new HashMap<>();
+
+        for (Process p : list) {
+
+            remaining.put(
+                p.pid,
+                p.burstTime
+            );
+
+            result.stats.put(
+                p.pid,
+                new Stats()
+            );
+        }
+
+        int time = initialTime;
+        int completed = 0;
+
+        while (completed < list.size()) {
+
+            Process selected = null;
+
+            for (Process p : list) {
+
+                if (p.arrivalTime <= time &&
+                    remaining.get(p.pid) > 0) {
+
+                    if (selected == null ||
+                        remaining.get(p.pid) <
+                        remaining.get(selected.pid)) {
+
+                        selected = p;
+                    }
+                }
+            }
+
+            if (selected == null) {
+
+                addSegment(
+                    result, -1, time, time + 1
+                );
+
+                time++;
+
+                continue;
+            }
+
+            Stats s = result.stats.get(
+                selected.pid
+            );
+
+            if (s.firstStart == -1) {
+                s.firstStart = time;
+            }
+
+            int start = time;
+
+            time++;
+
+            remaining.put(
+                selected.pid,
+                remaining.get(selected.pid) - 1
+            );
+
+            addSegment(
+                result, selected.pid, start, time
+            );
+
+            if (remaining.get(selected.pid) == 0) {
+
+                s.completion = time;
+
+                completed++;
+            }
+        }
+
+        result.finishTime = time;
+
+        return result;
+    }
+
+    // ==================================================
+    // ROUND ROBIN - PREEMPTIVE
+    // ==================================================
+    private ScheduleResult runRR(
+        List<Process> list,
+        int quantum,
+        int initialTime
+    ) {
+
+        ScheduleResult result = new ScheduleResult();
+
+        ArrayList<Process> sorted =
+            new ArrayList<>(list);
+
+        sorted.sort(
+            Comparator.comparingInt(
+                p -> p.arrivalTime
+            )
+        );
+
+        HashMap<Integer, Integer> remaining =
+            new HashMap<>();
+
+        for (Process p : list) {
+
+            remaining.put(
+                p.pid,
+                p.burstTime
+            );
+
+            result.stats.put(
+                p.pid,
+                new Stats()
+            );
+        }
+
+        Queue<Process> ready =
+            new LinkedList<>();
+
+        int time = initialTime;
+        int index = 0;
+        int completed = 0;
+
+        while (completed < list.size()) {
+
+            while (index < sorted.size() &&
+                   sorted.get(index).arrivalTime <= time) {
+
+                ready.add(sorted.get(index));
+
+                index++;
+            }
+
+            if (ready.isEmpty()) {
+
+                if (index < sorted.size()) {
+
+                    int next = Math.max(
+                        time,
+                        sorted.get(index).arrivalTime
+                    );
+
+                    addSegment(
+                        result, -1, time, next
+                    );
+
+                    time = next;
+                }
+
+                continue;
+            }
+
+            Process current = ready.poll();
+
+            Stats s = result.stats.get(
+                current.pid
+            );
+
+            if (s.firstStart == -1) {
+                s.firstStart = time;
+            }
+
+            int runTime = Math.min(
+                quantum,
+                remaining.get(current.pid)
+            );
+
+            int start = time;
+
+            time += runTime;
+
+            remaining.put(
+                current.pid,
+                remaining.get(current.pid) - runTime
+            );
+
+            addSegment(
+                result, current.pid, start, time
+            );
+
+            while (index < sorted.size() &&
+                   sorted.get(index).arrivalTime <= time) {
+
+                ready.add(sorted.get(index));
+
+                index++;
+            }
+
+            if (remaining.get(current.pid) > 0) {
+
+                ready.add(current);
+
+            } else {
+
+                s.completion = time;
+
+                completed++;
+            }
+        }
+
+        result.finishTime = time;
+
+        return result;
+    }
+
+    // ==================================================
+    // MLQ - MULTILEVEL QUEUE
+    //
+    // QUEUE 1 = FCFS
+    // QUEUE 2 = SJF
+    // QUEUE 3 = SRTF
+    // QUEUE 4 = ROUND ROBIN
+    // ==================================================
+    private ScheduleResult runMLQ(
+        List<Process> list,
+        int quantum
+    ) {
+
+        ScheduleResult combined =
+            new ScheduleResult();
+
+        int currentTime = 0;
+
+        String[] algorithms = {
+            "FCFS",
+            "SJF",
+            "SRTF",
+            "RR"
+        };
+
+        outputArea.append(
+            "\n========== MULTILEVEL QUEUE ==========\n"
+        );
+
+        for (int q = 1; q <= 4; q++) {
+
+            ArrayList<Process> queueProcesses =
+                new ArrayList<>();
+
+            for (Process p : list) {
+
+                if (p.queueLevel == q) {
+
+                    queueProcesses.add(p);
+                }
+            }
+
+            outputArea.append(
+                "\nQUEUE " + q +
+                " - " + algorithms[q - 1] + "\n"
+            );
+
+            if (queueProcesses.isEmpty()) {
+
+                outputArea.append(
+                    "No processes in this queue.\n"
+                );
+
+                continue;
+            }
+
+            ScheduleResult part;
+
+            switch (q) {
+
+                case 1:
+                    part = runFCFS(
+                        queueProcesses,
+                        currentTime
+                    );
+                    break;
+
+                case 2:
+                    part = runSJF(
+                        queueProcesses,
+                        currentTime
+                    );
+                    break;
+
+                case 3:
+                    part = runSRTF(
+                        queueProcesses,
+                        currentTime
+                    );
+                    break;
+
+                default:
+                    part = runRR(
+                        queueProcesses,
+                        quantum,
+                        currentTime
+                    );
+                    break;
+            }
+
+            combined.gantt.addAll(
+                part.gantt
+            );
+
+            combined.stats.putAll(
+                part.stats
+            );
+
+            currentTime = part.finishTime;
+        }
+
+        combined.finishTime = currentTime;
+
+        return combined;
+    }
+
+    // ==================================================
+    // ADD GANTT SEGMENT
+    // ==================================================
+    private void addSegment(
+        ScheduleResult result,
+        int pid,
+        int start,
+        int end
+    ) {
+
+        if (end <= start) {
+            return;
+        }
+
+        if (!result.gantt.isEmpty()) {
+
+            Segment last = result.gantt.get(
+                result.gantt.size() - 1
+            );
+
+            if (last.pid == pid &&
+                last.end == start) {
+
+                last.end = end;
+
+                return;
+            }
+        }
+
+        result.gantt.add(
+            new Segment(pid, start, end)
+        );
+    }
+
+    // ==================================================
+    // DISPLAY RESULTS
+    // ==================================================
+    private void displayResults(
+        ScheduleResult result,
+        String algorithm
+    ) {
+
+        outputArea.append(
+            "\n========== " +
+            algorithm +
+            " RESULTS ==========\n"
+        );
+
+        outputArea.append(
+            "\nGANTT TIMELINE:\n"
+        );
+
+        for (Segment s : result.gantt) {
+
+            String label = s.pid == -1
+                ? "IDLE"
+                : "P" + s.pid;
+
+            outputArea.append(
+                "|" + label +
+                " (" + s.start +
+                "-" + s.end + ") "
+            );
+        }
+
+        outputArea.append("|\n\n");
+
+        outputArea.append(
+            String.format(
+                "%-8s %-8s %-8s %-8s %-8s %-8s\n",
+                "PID", "AT", "BT", "CT", "TAT", "WT"
+            )
+        );
+
+        outputArea.append(
+            "------------------------------------------------------------\n"
+        );
+
+        double totalTAT = 0;
+        double totalWT = 0;
+
+        for (Process p : processes) {
+
+            Stats s = result.stats.get(p.pid);
+
+            if (s == null) {
+                continue;
+            }
+
+            int tat =
+                s.completion - p.arrivalTime;
+
+            int wt =
+                tat - p.burstTime;
+
+            totalTAT += tat;
+            totalWT += wt;
+
+            outputArea.append(
+                String.format(
+                    "%-8d %-8d %-8d %-8d %-8d %-8d\n",
+                    p.pid,
+                    p.arrivalTime,
+                    p.burstTime,
+                    s.completion,
+                    tat,
+                    wt
+                )
+            );
+        }
+
+        int count = result.stats.size();
+
+        if (count > 0) {
+
+            outputArea.append(
+                "\nAverage Turnaround Time: " +
+                String.format(
+                    "%.2f",
+                    totalTAT / count
+                )
+            );
+
+            outputArea.append(
+                "\nAverage Waiting Time: " +
+                String.format(
+                    "%.2f",
+                    totalWT / count
+                )
+            );
+        }
+
+        outputArea.append(
+            "\n\nSIMULATION COMPLETED!\n"
+        );
+    }
+
+    // ==================================================
+    // CLEAR ALL
+    // ==================================================
+    private void clearAll() {
+
+        processes.clear();
+
+        pidField.setText("");
+        atField.setText("");
+        btField.setText("");
+        queueField.setText("1");
+        quantumField.setText("2");
+
+        outputArea.setText("");
+
+        ganttChart.setSegments(
+            Collections.emptyList()
+        );
+    }
+
+    // ==================================================
+    // MAIN METHOD
+    // ==================================================
+    public static void main(String[] args) {
+
+        SwingUtilities.invokeLater(() -> {
+            new Main();
+        });
+    }
+}
