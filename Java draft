@@ -1,0 +1,80 @@
+//choices
+
+
+import java.util.Scanner;
+
+public class CPUScheduler {
+
+    public static void fcfs() {
+        System.out.println("\nFCFS Selected");
+    }
+
+    public static void sjf() {
+        System.out.println("\nSJF Selected");
+    }
+
+    public static void srtf() {
+        System.out.println("\nSRTF Selected");
+    }
+
+    public static void rr() {
+        System.out.println("\nRound Robin Selected");
+    }
+
+    public static void mlq() {
+        System.out.println("\nMLQ Selected");
+    }
+
+    public static void main(String[] args) {
+
+        Scanner sc = new Scanner(System.in);
+        int choice;
+
+        do {
+
+            System.out.println("\n===== CPU SCHEDULING SIMULATOR =====");
+            System.out.println("1. FCFS");
+            System.out.println("2. SJF");
+            System.out.println("3. SRTF");
+            System.out.println("4. Round Robin");
+            System.out.println("5. MLQ");
+            System.out.println("6. Exit");
+
+            System.out.print("Choose Algorithm: ");
+            choice = sc.nextInt();
+
+            switch(choice) {
+
+                case 1:
+                    fcfs();
+                    break;
+
+                case 2:
+                    sjf();
+                    break;
+
+                case 3:
+                    srtf();
+                    break;
+
+                case 4:
+                    rr();
+                    break;
+
+                case 5:
+                    mlq();
+                    break;
+
+                case 6:
+                    System.out.println("Program Ended.");
+                    break;
+
+                default:
+                    System.out.println("Invalid Choice!");
+            }
+
+        } while(choice != 6);
+
+        sc.close();
+    }
+}
